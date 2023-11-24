@@ -1,0 +1,159 @@
+name: Build and release ledger_ffi
+
+on:
+  push:
+    branches:
+      - main
+    tags:
+      - '*'
+  # Allows you to run this workflow manually from the Actions tab
+  workflow_dispatch:
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  build-linux:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup environment
+        run: |
+          sudo apt update
+          sudo apt upgrade -y
+          sudo apt install -y build-essential zip unzip wget libudev-dev
+      - name: Create output directories
+        run: |
+          mkdir linux-amd64
+          mkdir releases
+      - name: Build
+        run: | 
+          cargo build --target x86_64-unknown-linux-gnu --release
+          cp target/x86_64-unknown-linux-gnu/release/libledger_ffi.so linux-amd64/
+      - name: Archive files
+        run: |
+          zip -jr libledger_ffi-linux-amd64.zip linux-amd64/*
+      - name: Copy archived files to releases
+        run: cp libledger_ffi-linux-amd64.zip releases/
+      - uses: actions/upload-artifact@v3
+        with:
+          name: linux-artifacts
+          path: releases/
+
+  build-macos:
+    runs-on: macos-12
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Init Rust
+        run: | 
+          rustup target add x86_64-apple-darwin aarch64-apple-darwin
+          cargo install cargo-lipo
+      - name: Create output directories
+        run: |
+          mkdir darwin-amd64
+          mkdir darwin-arch64
+          mkdir releases
+      - name: Build
+        run: | 
+          cargo lipo --targets x86_64-apple-darwin,aarch64-apple-darwin --release
+          install_name_tool -id @rpath/../Frameworks/libledger_ffi_x86_64.dylib target/x86_64-apple-darwin/release/libledger_ffi.dylib
+          install_name_tool -id @rpath/../Frameworks/libledger_ffi_arch64.dylib target/aarch64-apple-darwin/release/libledger_ffi.dylib
+          cp target/x86_64-apple-darwin/release/libledger_ffi.dylib darwin-amd64/
+          cp target/aarch64-apple-darwin/release/libledger_ffi.dylib darwin-arch64/
+      - name: Archive files
+        run: |
+          zip -jr libledger_ffi-darwin-amd64.zip darwin-amd64/*
+          zip -jr libledger_ffi-darwin-arch64.zip darwin-arch64/*
+      - name: Copy archived files to releases
+        run: |
+          cp libledger_ffi-darwin-amd64.zip releases/
+          cp libledger_ffi-darwin-arch64.zip releases/
+      - uses: actions/upload-artifact@v3
+        with:
+          name: macos-artifacts
+          path: releases/
+        
+  build-windows:
+    runs-on: ubuntu-20.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v3
+      - name: Setup environment
+        run: |
+          sudo apt update
+          sudo apt upgrade -y
+          sudo apt install -y build-essential zip unzip wget mingw-w64
+      - name: Init Rust
+        run: |
+          rustup target add x86_64-pc-windows-gnu
+          rustup toolchain install stable-x86_64-pc-windows-gnu
+      - name: Create output directories
+        run: |
+          mkdir windows-amd64
+          mkdir releases
+      - name: Build
+        run: | 
+          cargo build --target x86_64-pc-windows-gnu --release
+          cp target/x86_64-pc-windows-gnu/release/ledger_ffi.dll windows-amd64/libledger_ffi.dll
+      - name: Archive files
+        run: |
+          zip -jr libledger_ffi-windows-amd64.zip windows-amd64/*
+      - name: Copy archived files to releases
+        run: cp libledger_ffi-windows-amd64.zip releases/
+      - uses: actions/upload-artifact@v3
+        with:
+          name: windows-artifacts
+          path: releases/
+
+  make-release:
+        needs: [build-linux, build-macos, build-windows]
+        runs-on: ubuntu-latest
+        steps:
+          - name: Set variables
+            run: |
+              echo "LIB_VERSION=${{ github.ref }}" >> $GITHUB_ENV
+              echo "Lib Version: $LIB_VERSION"
+              BODY=$(cat <<EOF
+              Github Action Context information
+              Git reference: ${{ github.ref }}
+              Repository URL:  ${{ github.repositoryUrl }}
+              Run ID: ${{ github.run_id }}
+              Commit hash: ${{ github.sha }}
+              Workflow hash: ${{ github.workflow_sha }}
+              EOF
+              )
+              echo "$BODY"
+              echo "BODY<<EOFMARKER" >> ${GITHUB_ENV}
+              echo "${BODY}" >> ${GITHUB_ENV}
+              echo "EOFMARKER" >> ${GITHUB_ENV}
+          - uses: actions/download-artifact@v3
+            with:
+              name: linux-artifacts
+          - uses: actions/download-artifact@v3
+            with:
+              name: macos-artifacts
+          - uses: actions/download-artifact@v3
+            with:
+              name: windows-artifacts
+          - name: Prepare releases directory
+            run: |
+              mkdir releases
+              cp libledger_ffi-darwin-amd64.zip libledger_ffi-darwin-arch64.zip libledger_ffi-linux-amd64.zip libledger_ffi-windows-amd64.zip releases/
+          - name: Generate checksums
+            run: | 
+              cd releases/
+              echo $(sha256sum *)
+              echo $(sha256sum *) >> SHA256CHECKSUMS.txt
+          - name: Upload files to a GitHub release
+            uses: svenstaro/upload-release-action@2.5.0
+            with:
+              repo_token: ${{ secrets.GITHUB_TOKEN }}
+              release_name: ${{ env.LIB_VERSION }}
+              prerelease: ${{ contains(env.LIB_VERSION, '-') }}
+              tag: ${{ env.LIB_VERSION }}
+              file_glob: true
+              file: releases/*
+              overwrite: true
+              body: ${{ env.BODY }}
