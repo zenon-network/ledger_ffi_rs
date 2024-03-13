@@ -18,6 +18,7 @@ pub struct LedgerHidTransport {
 pub struct LedgerDeviceInfo {
     pub name: String,
     pub path: String,
+    pub serial_number: String,
 }
 
 impl LedgerHidTransport {
@@ -77,6 +78,7 @@ impl LedgerHidTransport {
                     hid_devices.push(LedgerDeviceInfo {
                         name: device.product_string().unwrap().to_string(),
                         path: device.path().to_str().unwrap().to_string(),
+                        serial_number: device.serial_number().unwrap().to_string(),
                     });
                 }
                 Ok(hid_devices.clone())
