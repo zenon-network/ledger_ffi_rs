@@ -60,7 +60,7 @@ jobs:
           cargo lipo --targets x86_64-apple-darwin,aarch64-apple-darwin --release
           install_name_tool -id @rpath/../Frameworks/libledger_ffi_x86_64.dylib target/x86_64-apple-darwin/release/libledger_ffi.dylib
           install_name_tool -id @rpath/../Frameworks/libledger_ffi_arch64.dylib target/aarch64-apple-darwin/release/libledger_ffi.dylib
-          lipo target/x86_64-apple-darwin/release/libledger_ffi.dylib target/aarch64-apple-darwin/release/libledger_ffi.dylib -output darwin-universal/libledger_ffi.dylib
+          lipo target/x86_64-apple-darwin/release/libledger_ffi.dylib target/aarch64-apple-darwin/release/libledger_ffi.dylib -output darwin-universal/libledger_ffi.dylib -create
       - name: Archive files
         run: |
           zip -jr libledger_ffi-darwin-universal.zip darwin-universal/*
