@@ -52,8 +52,7 @@ jobs:
           cargo install cargo-lipo
       - name: Create output directories
         run: |
-          mkdir darwin-amd64
-          mkdir darwin-arch64
+          mkdir darwin-universal
           mkdir releases
       - name: Build
         run: | 
