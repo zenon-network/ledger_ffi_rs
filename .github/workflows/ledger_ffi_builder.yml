@@ -52,24 +52,20 @@ jobs:
           cargo install cargo-lipo
       - name: Create output directories
         run: |
-          mkdir darwin-amd64
-          mkdir darwin-arch64
+          mkdir darwin-universal
           mkdir releases
       - name: Build
         run: | 
           cargo lipo --targets x86_64-apple-darwin,aarch64-apple-darwin --release
           install_name_tool -id @rpath/../Frameworks/libledger_ffi_x86_64.dylib target/x86_64-apple-darwin/release/libledger_ffi.dylib
           install_name_tool -id @rpath/../Frameworks/libledger_ffi_arch64.dylib target/aarch64-apple-darwin/release/libledger_ffi.dylib
-          cp target/x86_64-apple-darwin/release/libledger_ffi.dylib darwin-amd64/
-          cp target/aarch64-apple-darwin/release/libledger_ffi.dylib darwin-arch64/
+          lipo target/x86_64-apple-darwin/release/libledger_ffi.dylib target/aarch64-apple-darwin/release/libledger_ffi.dylib -output darwin-universal/libledger_ffi.dylib -create
       - name: Archive files
         run: |
-          zip -jr libledger_ffi-darwin-amd64.zip darwin-amd64/*
-          zip -jr libledger_ffi-darwin-arch64.zip darwin-arch64/*
+          zip -jr libledger_ffi-darwin-universal.zip darwin-universal/*
       - name: Copy archived files to releases
         run: |
-          cp libledger_ffi-darwin-amd64.zip releases/
-          cp libledger_ffi-darwin-arch64.zip releases/
+          cp libledger_ffi-darwin-universal.zip releases/
       - uses: actions/upload-artifact@v3
         with:
           name: macos-artifacts
@@ -140,7 +136,7 @@ jobs:
           - name: Prepare releases directory
             run: |
               mkdir releases
-              cp libledger_ffi-darwin-amd64.zip libledger_ffi-darwin-arch64.zip libledger_ffi-linux-amd64.zip libledger_ffi-windows-amd64.zip releases/
+              cp libledger_ffi-darwin-universal.zip libledger_ffi-linux-amd64.zip libledger_ffi-windows-amd64.zip releases/
           - name: Generate checksums
             run: | 
               cd releases/
