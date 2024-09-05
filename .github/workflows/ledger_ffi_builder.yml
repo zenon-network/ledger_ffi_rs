@@ -17,7 +17,7 @@ jobs:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Setup environment
         run: |
           sudo apt update
@@ -36,16 +36,17 @@ jobs:
           zip -jr libledger_ffi-linux-amd64.zip linux-amd64/*
       - name: Copy archived files to releases
         run: cp libledger_ffi-linux-amd64.zip releases/
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: linux-artifacts
           path: releases/
+          overwrite: true
 
   build-macos:
     runs-on: macos-12
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Init Rust
         run: | 
           rustup target add x86_64-apple-darwin aarch64-apple-darwin
@@ -66,16 +67,17 @@ jobs:
       - name: Copy archived files to releases
         run: |
           cp libledger_ffi-darwin-universal.zip releases/
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: macos-artifacts
           path: releases/
+          overwrite: true
         
   build-windows:
     runs-on: ubuntu-20.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
       - name: Setup environment
         run: |
           sudo apt update
@@ -98,10 +100,11 @@ jobs:
           zip -jr libledger_ffi-windows-amd64.zip windows-amd64/*
       - name: Copy archived files to releases
         run: cp libledger_ffi-windows-amd64.zip releases/
-      - uses: actions/upload-artifact@v3
+      - uses: actions/upload-artifact@v4
         with:
           name: windows-artifacts
           path: releases/
+          overwrite: true
 
   make-release:
         needs: [build-linux, build-macos, build-windows]
@@ -124,13 +127,13 @@ jobs:
               echo "BODY<<EOFMARKER" >> ${GITHUB_ENV}
               echo "${BODY}" >> ${GITHUB_ENV}
               echo "EOFMARKER" >> ${GITHUB_ENV}
-          - uses: actions/download-artifact@v3
+          - uses: actions/download-artifact@v4
             with:
               name: linux-artifacts
-          - uses: actions/download-artifact@v3
+          - uses: actions/download-artifact@v4
             with:
               name: macos-artifacts
-          - uses: actions/download-artifact@v3
+          - uses: actions/download-artifact@v4
             with:
               name: windows-artifacts
           - name: Prepare releases directory
@@ -143,7 +146,7 @@ jobs:
               echo $(sha256sum *)
               echo $(sha256sum *) >> SHA256CHECKSUMS.txt
           - name: Upload files to a GitHub release
-            uses: svenstaro/upload-release-action@2.5.0
+            uses: svenstaro/upload-release-action@2.9.0
             with:
               repo_token: ${{ secrets.GITHUB_TOKEN }}
               release_name: ${{ env.LIB_VERSION }}
